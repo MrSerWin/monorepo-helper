@@ -1,0 +1,419 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve symlinks and find the real script location
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+if [[ -L "$SELF" ]]; then
+  SELF="$(readlink -f "$SELF" 2>/dev/null || readlink "$SELF")"
+fi
+MH_ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
+
+source "${MH_ROOT}/lib/colors.sh"
+
+VERSION="1.0.0"
+
+# ─── Template Registry ──────────────────────────────────────────────────────
+# Format: "category:template:description"
+TEMPLATES=(
+  # Frontend
+  "frontend:next-app:Next.js 15 + React 19 + TypeScript + Tailwind CSS 4"
+  "frontend:vite-react:Vite 6 + React 19 + TypeScript + Tailwind CSS 4"
+  "frontend:vite-vue:Vite 6 + Vue 3.5 + TypeScript + Tailwind CSS 4 + Pinia"
+  "frontend:nuxt-app:Nuxt 4 + Vue 3.5 + TypeScript + Tailwind CSS 4"
+  "frontend:vite-svelte:Vite 6 + Svelte 5 + TypeScript + Tailwind CSS 4"
+  "frontend:sveltekit-app:SvelteKit 2 + Svelte 5 + TypeScript + Tailwind CSS 4"
+  "frontend:astro-site:Astro 5 + TypeScript + Tailwind CSS 4"
+  "frontend:remix-app:Remix (React Router 7) + React 19 + TypeScript + Tailwind CSS 4"
+
+  # Backend
+  "backend:node-express:Node.js 22 + Express 5 + TypeScript + Prisma 6 + PostgreSQL"
+  "backend:node-fastify:Node.js 22 + Fastify 5 + TypeScript + Prisma 6 + PostgreSQL"
+  "backend:node-hono:Node.js 22 + Hono 4 + TypeScript + Drizzle ORM + PostgreSQL"
+  "backend:node-nestjs:NestJS 11 + TypeScript + Prisma 6 + PostgreSQL + Swagger"
+  "backend:node-graphql:Node.js 22 + Apollo Server 4 + TypeScript + Pothos + Prisma 6"
+  "backend:bun-elysia:Bun 1.2 + Elysia 1.2 + TypeScript + Drizzle ORM + PostgreSQL"
+  "backend:go-chi:Go 1.23 + Chi router + sqlc + PostgreSQL + Docker"
+  "backend:go-fiber:Go 1.23 + Fiber v3 + GORM + PostgreSQL + Docker"
+  "backend:python-fastapi:Python 3.13 + FastAPI + SQLAlchemy 2 + Alembic + PostgreSQL"
+  "backend:python-django:Python 3.13 + Django 5 + DRF + PostgreSQL + Docker"
+
+  # Fullstack
+  "fullstack:t3-app:Next.js 15 + tRPC 11 + Prisma 6 + NextAuth 5 + Tailwind CSS 4"
+  "fullstack:next-supabase:Next.js 15 + Supabase + Tailwind CSS 4 + TypeScript"
+  "fullstack:next-drizzle:Next.js 15 + Drizzle ORM + PostgreSQL + NextAuth 5 + Tailwind CSS 4"
+  "fullstack:sveltekit-prisma:SvelteKit 2 + Prisma 6 + PostgreSQL + Lucia Auth + Tailwind CSS 4"
+  "fullstack:nuxt-supabase:Nuxt 4 + Supabase + Tailwind CSS 4 + TypeScript"
+
+  # Mobile
+  "mobile:expo-app:Expo 52 + React Native + TypeScript + NativeWind + Expo Router"
+  "mobile:rn-bare:React Native 0.77 + TypeScript + React Navigation + NativeWind"
+  "mobile:expo-supabase:Expo 52 + Supabase + TypeScript + NativeWind + Expo Router"
+  "mobile:expo-firebase:Expo 52 + Firebase + TypeScript + NativeWind + Expo Router"
+  "mobile:flutter-app:Flutter 3.27 + Dart 3.6 + Material 3 + Riverpod"
+  "mobile:flutter-firebase:Flutter 3.27 + Firebase + Riverpod + GoRouter"
+  "mobile:flutter-supabase:Flutter 3.27 + Supabase + Riverpod + GoRouter"
+  "mobile:kotlin-compose:Kotlin + Jetpack Compose + Material 3 + Hilt + Room"
+  "mobile:swift-app:Swift 6 + SwiftUI + SwiftData + Observation"
+  "mobile:kmp-app:Kotlin Multiplatform + Compose Multiplatform + Koin + Ktor"
+  "mobile:ionic-angular:Ionic 8 + Angular 19 + Capacitor 6 + TypeScript"
+  "mobile:ionic-react:Ionic 8 + React 19 + Capacitor 6 + TypeScript"
+  "mobile:maui-app:.NET 9 + MAUI + C# + CommunityToolkit + MVVM"
+  "mobile:maui-blazor:.NET 9 + MAUI + Blazor Hybrid + C# + MudBlazor"
+  "mobile:expo-trpc:Expo 52 + tRPC 11 + Tanstack Query + TypeScript + NativeWind"
+  "mobile:expo-trpc-monorepo:Turborepo + Expo 52 + Next.js 15 + tRPC 11 + Prisma 6"
+
+  # Desktop
+  "desktop:electron-react:Electron 34 + React 19 + Vite 6 + TypeScript + Tailwind CSS 4"
+  "desktop:tauri-react:Tauri 2 + React 19 + Vite 6 + TypeScript + Tailwind CSS 4"
+  "desktop:tauri-svelte:Tauri 2 + Svelte 5 + Vite 6 + TypeScript + Tailwind CSS 4"
+
+  # CLI / Library
+  "cli-library:node-cli:Node.js 22 + TypeScript + Commander.js + tsup + Vitest"
+  "cli-library:npm-package:TypeScript + tsup + Vitest + Changesets + GitHub Actions"
+  "cli-library:go-cli:Go 1.23 + Cobra + Viper"
+  "cli-library:chrome-ext:Vite 6 + React 19 + TypeScript + CRXJS + Tailwind CSS 4"
+
+  # AI / ML
+  "ai-ml:ai-chatbot:Next.js 15 + Vercel AI SDK 4 + TypeScript + Tailwind CSS 4"
+  "ai-ml:mcp-server:Node.js 22 + TypeScript + @modelcontextprotocol/sdk"
+  "ai-ml:python-ml:Python 3.13 + PyTorch + FastAPI + Docker"
+
+  # Monorepo
+  "monorepo:turbo-next-nest:Turborepo + Next.js 15 + NestJS 11 + Prisma 6 + TypeScript"
+  "monorepo:turbo-next-hono:Turborepo + Next.js 15 + Hono 4 + Drizzle + TypeScript"
+  "monorepo:turbo-next-expo:Turborepo + Next.js 15 + Expo 52 + shared UI + TypeScript"
+  "monorepo:nx-angular-nest:Nx + Angular 19 + NestJS 11 + Prisma 6 + TypeScript"
+  "monorepo:turbo-packages:Turborepo + TypeScript + tsup + Changesets + Vitest"
+  "monorepo:turbo-saas:Turborepo + Next.js 15 + Hono 4 + Drizzle + Stripe + NextAuth 5"
+
+  # Infrastructure
+  "infrastructure:docker-compose:Docker Compose + Nginx + PostgreSQL + Redis"
+  "infrastructure:github-actions:GitHub Actions CI/CD pipelines"
+
+  # Serverless / Edge
+  "serverless:cf-worker:Cloudflare Workers + Hono 4 + TypeScript + D1/KV"
+  "serverless:aws-lambda:AWS SAM + Node.js 22 + TypeScript + DynamoDB"
+  "serverless:vercel-functions:Vercel Functions + TypeScript + Vercel KV/Postgres"
+
+  # CMS / Admin
+  "cms-admin:payload-cms:Payload 3 + Next.js 15 + TypeScript + PostgreSQL"
+  "cms-admin:strapi-app:Strapi 5 + TypeScript + PostgreSQL"
+  "cms-admin:admin-refine:Refine 4 + React 19 + Vite 6 + TypeScript"
+
+  # E-commerce
+  "ecommerce:medusa-store:Medusa 2 + Next.js 15 Storefront + TypeScript + PostgreSQL"
+  "ecommerce:shopify-hydrogen:Hydrogen 2 + Remix + TypeScript + Tailwind CSS 4"
+
+  # Real-time / Bots
+  "realtime:socket-chat:Node.js 22 + Socket.io 4 + React 19 + TypeScript"
+  "realtime:discord-bot:Discord.js 14 + TypeScript + Node.js 22"
+  "realtime:telegram-bot:grammY + TypeScript + Node.js 22"
+
+  # Documentation
+  "documentation:vitepress-docs:VitePress 2 + Vue 3 + TypeScript"
+  "documentation:docusaurus-docs:Docusaurus 3 + React + TypeScript + MDX"
+  "documentation:astro-blog:Astro 5 + MDX + Tailwind CSS 4 + RSS"
+
+  # Email
+  "email:react-email:React Email + TypeScript + Resend"
+
+  # Microservices
+  "microservices:node-kafka:Node.js 22 + KafkaJS + TypeScript + Docker Compose"
+  "microservices:node-grpc:Node.js 22 + gRPC + TypeScript + Protobuf"
+
+  # Web3
+  "web3:web3-dapp:Next.js 15 + wagmi 2 + viem + RainbowKit + TypeScript"
+  "web3:hardhat-contracts:Hardhat 2 + Solidity + TypeScript + Ethers.js v6"
+
+  # Landing / Marketing
+  "landing:landing-page:Next.js 15 + Tailwind CSS 4 + Framer Motion + TypeScript"
+  "landing:saas-landing:Astro 5 + Tailwind CSS 4 + Stripe + TypeScript"
+
+  # Testing / QA
+  "testing:playwright-e2e:Playwright + TypeScript + GitHub Actions"
+  "testing:storybook-ui:Storybook 8 + React 19 + TypeScript + Tailwind CSS 4"
+)
+
+# ─── Category Display Names ─────────────────────────────────────────────────
+# Compatible with bash 3.x (macOS default) - no associative arrays
+get_category_name() {
+  case "$1" in
+    frontend) echo "Frontend" ;;
+    backend) echo "Backend" ;;
+    fullstack) echo "Fullstack" ;;
+    mobile) echo "Mobile" ;;
+    desktop) echo "Desktop" ;;
+    cli-library) echo "CLI / Library / Tooling" ;;
+    ai-ml) echo "AI / ML" ;;
+    monorepo) echo "Monorepo" ;;
+    infrastructure) echo "Infrastructure / DevOps" ;;
+    serverless) echo "Serverless / Edge" ;;
+    cms-admin) echo "CMS / Admin" ;;
+    ecommerce) echo "E-commerce" ;;
+    realtime) echo "Real-time / Bots" ;;
+    documentation) echo "Documentation / Content" ;;
+    email) echo "Email" ;;
+    microservices) echo "Microservices" ;;
+    web3) echo "Web3 / Blockchain" ;;
+    landing) echo "Landing / Marketing" ;;
+    testing) echo "Testing / QA" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+# Category order for display
+CATEGORY_ORDER=(
+  frontend backend fullstack mobile desktop cli-library ai-ml monorepo
+  infrastructure serverless cms-admin ecommerce realtime documentation
+  email microservices web3 landing testing
+)
+
+# ─── Functions ───────────────────────────────────────────────────────────────
+
+show_version() {
+  echo -e "${BOLD}mh${NC} v${VERSION}"
+}
+
+show_help() {
+  header "monorepo-helper (mh) v${VERSION}"
+  echo ""
+  echo -e "${BOLD}USAGE${NC}"
+  echo "  mh <command> [options]"
+  echo ""
+  echo -e "${BOLD}COMMANDS${NC}"
+  echo -e "  ${GREEN}generate${NC} <template> [name]  Generate a new project from template"
+  echo -e "  ${GREEN}list${NC} [category]             List available templates"
+  echo -e "  ${GREEN}search${NC} <query>              Search templates by keyword"
+  echo -e "  ${GREEN}info${NC} <template>             Show template details"
+  echo -e "  ${GREEN}version${NC}                     Show version"
+  echo -e "  ${GREEN}help${NC}                        Show this help"
+  echo ""
+  echo -e "${BOLD}OPTIONS${NC}"
+  echo "  --name, -n <name>          Project name (default: template default)"
+  echo "  --help, -h                 Show help"
+  echo ""
+  echo -e "${BOLD}EXAMPLES${NC}"
+  echo "  mh generate next-app my-website"
+  echo "  mh generate node-express --name my-api"
+  echo "  mh generate turbo-next-nest"
+  echo "  mh list frontend"
+  echo "  mh search react"
+  echo ""
+}
+
+# List templates, optionally filtered by category
+cmd_list() {
+  local filter="${1:-}"
+
+  if [[ -n "$filter" ]]; then
+    # Show single category
+    local display_name
+    display_name="$(get_category_name "$filter")"
+    echo ""
+    echo -e "${BOLD}${MAGENTA}${display_name}${NC}"
+    echo -e "${GRAY}$(printf '─%.0s' $(seq 1 50))${NC}"
+    for entry in "${TEMPLATES[@]}"; do
+      IFS=':' read -r cat tmpl desc <<< "$entry"
+      if [[ "$cat" == "$filter" ]]; then
+        echo -e "  ${GREEN}${tmpl}${NC}  ${DIM}${desc}${NC}"
+      fi
+    done
+    echo ""
+  else
+    # Show all categories
+    header "Available Templates"
+    for cat in "${CATEGORY_ORDER[@]}"; do
+      local display_name
+      display_name="$(get_category_name "$cat")"
+      local count=0
+      for entry in "${TEMPLATES[@]}"; do
+        IFS=':' read -r c _ _ <<< "$entry"
+        [[ "$c" == "$cat" ]] && count=$((count + 1))
+      done
+      echo ""
+      echo -e "  ${BOLD}${MAGENTA}${display_name}${NC} ${GRAY}(${count})${NC}"
+      for entry in "${TEMPLATES[@]}"; do
+        IFS=':' read -r c tmpl desc <<< "$entry"
+        if [[ "$c" == "$cat" ]]; then
+          echo -e "    ${GREEN}${tmpl}${NC}  ${DIM}${desc}${NC}"
+        fi
+      done
+    done
+    echo ""
+    local total=${#TEMPLATES[@]}
+    echo -e "  ${BOLD}Total: ${total} templates${NC}"
+    echo ""
+  fi
+}
+
+# Search templates by keyword
+cmd_search() {
+  local query="${1:-}"
+  if [[ -z "$query" ]]; then
+    error "Please provide a search query."
+    echo "  Usage: mh search <query>"
+    exit 1
+  fi
+
+  local found=0
+  echo ""
+  echo -e "${BOLD}Search results for '${query}':${NC}"
+  echo ""
+
+  for entry in "${TEMPLATES[@]}"; do
+    IFS=':' read -r cat tmpl desc <<< "$entry"
+    if echo "${cat}:${tmpl}:${desc}" | grep -qi "$query"; then
+      local display_name
+      display_name="$(get_category_name "$cat")"
+      echo -e "  ${GREEN}${tmpl}${NC} ${GRAY}[${display_name}]${NC}"
+      echo -e "  ${DIM}${desc}${NC}"
+      echo ""
+      found=$((found + 1))
+    fi
+  done
+
+  if [[ $found -eq 0 ]]; then
+    warn "No templates found matching '${query}'"
+  else
+    echo -e "  ${BOLD}Found: ${found} template(s)${NC}"
+  fi
+  echo ""
+}
+
+# Show info about a specific template
+cmd_info() {
+  local target="${1:-}"
+  if [[ -z "$target" ]]; then
+    error "Please provide a template name."
+    echo "  Usage: mh info <template>"
+    exit 1
+  fi
+
+  for entry in "${TEMPLATES[@]}"; do
+    IFS=':' read -r cat tmpl desc <<< "$entry"
+    if [[ "$tmpl" == "$target" ]]; then
+      local display_name
+      display_name="$(get_category_name "$cat")"
+      echo ""
+      header "${tmpl}"
+      echo ""
+      echo -e "  ${BOLD}Category:${NC}    ${display_name}"
+      echo -e "  ${BOLD}Stack:${NC}       ${desc}"
+      echo -e "  ${BOLD}Template:${NC}    templates/${cat}/${tmpl}.sh"
+      echo ""
+      echo -e "  ${BOLD}Usage:${NC}"
+      echo -e "    mh generate ${tmpl} [project-name]"
+      echo ""
+      return
+    fi
+  done
+
+  error "Template '${target}' not found."
+  echo "  Run 'mh list' to see available templates."
+  exit 1
+}
+
+# Generate a project from template
+cmd_generate() {
+  local template="${1:-}"
+  if [[ -z "$template" ]]; then
+    error "Please provide a template name."
+    echo "  Usage: mh generate <template> [project-name]"
+    echo "  Run 'mh list' to see available templates."
+    exit 1
+  fi
+  shift
+
+  # Find the template
+  local found_cat=""
+  for entry in "${TEMPLATES[@]}"; do
+    IFS=':' read -r cat tmpl desc <<< "$entry"
+    if [[ "$tmpl" == "$template" ]]; then
+      found_cat="$cat"
+      break
+    fi
+  done
+
+  if [[ -z "$found_cat" ]]; then
+    error "Template '${template}' not found."
+    echo ""
+    # Suggest similar templates
+    local suggestions=()
+    for entry in "${TEMPLATES[@]}"; do
+      IFS=':' read -r _ tmpl _ <<< "$entry"
+      if echo "$tmpl" | grep -qi "${template:0:4}"; then
+        suggestions+=("$tmpl")
+      fi
+    done
+    if [[ ${#suggestions[@]} -gt 0 ]]; then
+      echo -e "  ${YELLOW}Did you mean:${NC}"
+      for s in "${suggestions[@]}"; do
+        echo -e "    ${GREEN}${s}${NC}"
+      done
+    fi
+    echo ""
+    echo "  Run 'mh list' to see all available templates."
+    exit 1
+  fi
+
+  local script_path="${MH_ROOT}/templates/${found_cat}/${template}.sh"
+  if [[ ! -f "$script_path" ]]; then
+    error "Template script not found: ${script_path}"
+    echo "  This template has not been implemented yet."
+    exit 1
+  fi
+
+  echo ""
+  header "Generating: ${template}"
+  echo ""
+
+  # Execute template script with remaining args
+  bash "$script_path" "$@"
+}
+
+# ─── Main ────────────────────────────────────────────────────────────────────
+
+main() {
+  local command="${1:-help}"
+
+  case "$command" in
+    generate|g|new|create)
+      shift
+      cmd_generate "$@"
+      ;;
+    list|ls|l)
+      shift
+      cmd_list "$@"
+      ;;
+    search|s|find)
+      shift
+      cmd_search "$@"
+      ;;
+    info|i)
+      shift
+      cmd_info "$@"
+      ;;
+    version|--version|-v)
+      show_version
+      ;;
+    help|--help|-h)
+      show_help
+      ;;
+    *)
+      # Try as template name directly: mh next-app my-project
+      for entry in "${TEMPLATES[@]}"; do
+        IFS=':' read -r _ tmpl _ <<< "$entry"
+        if [[ "$tmpl" == "$command" ]]; then
+          shift
+          cmd_generate "$command" "$@"
+          return
+        fi
+      done
+      error "Unknown command: ${command}"
+      echo "  Run 'mh help' for usage."
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
