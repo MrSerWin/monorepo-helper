@@ -8,7 +8,7 @@ A CLI tool that generates **fully working boilerplate projects** for standalone 
 
 **macOS / Linux:**
 ```bash
-git clone https://github.com/your-username/monorepo-helper.git
+git clone https://github.com/MrSerWin/monorepo-helper.git
 cd monorepo-helper
 export PATH="$PWD/bin:$PATH"
 
@@ -20,7 +20,7 @@ mh generate turbo-saas
 **Windows (PowerShell):**
 ```powershell
 # One-line install (PowerShell as Administrator)
-irm https://raw.githubusercontent.com/your-username/monorepo-helper/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/MrSerWin/monorepo-helper/main/install.ps1 | iex
 
 # Then in a new terminal:
 mh generate next-app my-website
@@ -33,14 +33,21 @@ mh generate next-app my-website
 #### Option 1: Clone & Symlink
 
 ```bash
-git clone https://github.com/your-username/monorepo-helper.git ~/.monorepo-helper
-ln -s ~/.monorepo-helper/bin/mh /usr/local/bin/mh
+git clone https://github.com/MrSerWin/monorepo-helper.git ~/.monorepo-helper
+
+# Option A: symlink to /usr/local/bin (requires sudo)
+sudo ln -s ~/.monorepo-helper/bin/mh /usr/local/bin/mh
+
+# Option B: symlink to ~/.local/bin (no sudo needed)
+mkdir -p ~/.local/bin
+ln -s ~/.monorepo-helper/bin/mh ~/.local/bin/mh
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc  # or ~/.bashrc
 ```
 
 #### Option 2: Direct Download
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/your-username/monorepo-helper/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MrSerWin/monorepo-helper/main/install.sh | bash
 ```
 
 ### Windows
@@ -48,7 +55,7 @@ curl -fsSL https://raw.githubusercontent.com/your-username/monorepo-helper/main/
 #### Option 1: PowerShell Installer (recommended)
 
 ```powershell
-irm https://raw.githubusercontent.com/your-username/monorepo-helper/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/MrSerWin/monorepo-helper/main/install.ps1 | iex
 ```
 
 The installer will:
@@ -60,7 +67,7 @@ The installer will:
 #### Option 2: Manual setup
 
 ```powershell
-git clone https://github.com/your-username/monorepo-helper.git $HOME\.monorepo-helper
+git clone https://github.com/MrSerWin/monorepo-helper.git $HOME\.monorepo-helper
 $env:PATH += ";$HOME\.monorepo-helper\bin"
 
 # Permanent PATH (run once):

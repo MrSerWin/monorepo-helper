@@ -73,7 +73,7 @@ if (Test-Path $InstallDir) {
     Write-Ok "Updated to latest version"
   }
 } else {
-  $repoUrl = "https://github.com/your-username/monorepo-helper.git"
+  $repoUrl = "https://github.com/MrSerWin/monorepo-helper.git"
   Write-Step "Cloning from $repoUrl ..."
   git clone --depth 1 $repoUrl $InstallDir --quiet
   Write-Ok "Cloned repository"

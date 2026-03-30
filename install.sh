@@ -3,7 +3,7 @@ set -euo pipefail
 
 # monorepo-helper (mh) - macOS / Linux installer
 
-REPO_URL="https://github.com/your-username/monorepo-helper.git"
+REPO_URL="https://github.com/MrSerWin/monorepo-helper.git"
 INSTALL_DIR="${MH_INSTALL_DIR:-$HOME/.monorepo-helper}"
 BIN_DIR="$INSTALL_DIR/bin"
 
@@ -61,9 +61,19 @@ else
   success "Added $BIN_DIR to PATH in $RC_FILE"
 fi
 
-# ─── Symlink to /usr/local/bin (optional) ────────────────────────────────────
+# ─── Symlink: try /usr/local/bin, fall back to ~/.local/bin ──────────────────
 if [[ -d "/usr/local/bin" ]] && [[ -w "/usr/local/bin" ]]; then
   ln -sf "$BIN_DIR/mh" /usr/local/bin/mh 2>/dev/null && success "Created symlink: /usr/local/bin/mh"
+else
+  LOCAL_BIN="$HOME/.local/bin"
+  mkdir -p "$LOCAL_BIN"
+  ln -sf "$BIN_DIR/mh" "$LOCAL_BIN/mh" 2>/dev/null && success "Created symlink: $LOCAL_BIN/mh"
+  # Ensure ~/.local/bin is in PATH (if not already covered by BIN_DIR above)
+  if [[ "$LOCAL_BIN" != "$BIN_DIR" ]]; then
+    if [[ -f "$RC_FILE" ]] && ! grep -q "\.local/bin" "$RC_FILE" 2>/dev/null; then
+      echo -e "\nexport PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$RC_FILE"
+    fi
+  fi
 fi
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
